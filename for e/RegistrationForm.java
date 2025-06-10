@@ -1,9 +1,16 @@
 // RegistrationForm.java
 import javax.swing.*;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.nimbus.NimbusLookAndFeel;
 import java.awt.*;
+import javax.swing.event.DocumentEvent;
 import java.time.LocalDateTime;
 
+/**
+ * Форма регистрации с кнопкой «Open PostForm», которая открывает
+ * вложенный диалог PostForm для ввода «Message To», «Message From»,
+ * «Tag Friend Link» и «Message to write».
+ */
 public class RegistrationForm extends ValidForm {
     static {
         try {
@@ -24,7 +31,7 @@ public class RegistrationForm extends ValidForm {
 
     public RegistrationForm() {
         super("Registration");
-        setSize(400, 540);
+        setSize(400, 580);
         setLayout(new BorderLayout(0, 10));
 
         // —— Заголовок приложения (сверху) ——
@@ -68,7 +75,7 @@ public class RegistrationForm extends ValidForm {
         gbc.gridx = 1;
         addButton(8, "Reset",    e -> resetForm(fields));
 
-        // 6) Кнопка AddPost (gridy = 8, gridx = 0) — для примера
+        // 6) Кнопка AddPost (gridy = 8, gridx = 0) — просто пример
         gbc.gridy = 8;
         gbc.gridx = 0;
         gbc.anchor = GridBagConstraints.WEST;
@@ -76,18 +83,43 @@ public class RegistrationForm extends ValidForm {
         postBtn.addActionListener(e -> doPost());
         panel.add(postBtn, gbc);
 
-        // 7) Панель реакции (внизу)
+        // 7) Новая кнопка «PostForm» (gridy = 9, gridx = 0)
+        gbc.gridy = 9;
+        gbc.gridx = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        JButton btnPostForm = new JButton("Open PostForm");
+        btnPostForm.addActionListener(e -> openPostForm());
+        panel.add(btnPostForm, gbc);
+
+        // 8) Панель реакции (внизу)
         reaction = new ReactionPanel();
         add(reaction, BorderLayout.SOUTH);
 
-        // 8) Адаптивный дизайн
+        // 9) Адаптивный дизайн
         AdaptiveLayout.install(this, 400);
     }
 
     /**
+     * Вспомогательный метод-переход:
+     * открывает модальное окно PostForm.
+     */
+    private void openPostForm() {
+        PostForm dlg = new PostForm(this);
+        dlg.setVisible(true);
+        // Если пользователь нажал «Send» и все поля заполнены, dlg.isSubmitted() == true
+        if (dlg.isSubmitted()) {
+            // При желании можно получить то, что ввёл пользователь:
+            String toText   = dlg.getTo();
+            String fromText = dlg.getFrom();
+            String tagLink  = dlg.getTagLink();
+            String msgText  = dlg.getMessageText();
+            reaction.showMessage("Message sent to: " + toText + "\nTag: " + tagLink, true);
+        }
+    }
+
+    /**
      * Метод, вызываемый при нажатии на кнопку «Register».
-     * Добавлена проверка длины пароля: минимум 6, максимум 14 символов.
-     * После успешной регистрации добавляем новое имя в UserStore.
+     * Проверяет все поля, регистрирует (логика AuthManager).
      */
     private void doRegister() {
         String fn = firstName.getText().trim();
@@ -127,78 +159,170 @@ public class RegistrationForm extends ValidForm {
         // 5) Успешная регистрация
         reaction.showMessage("Registration successful!", true);
 
-        // 6) Добавляем имя пользователя (firstName) в наш статический UserStore
-        UserStore.addUser(fn);
-
-        // 7) Запоминаем момент регистрации
+        // 6) Запоминаем момент регистрации
         LocalDateTime registrationTime = LocalDateTime.now();
 
-        // 8) Открываем ContactForm (передаём fn, ln, ph, registrationTime)
+        // 7) Открываем ContactForm (передаём fn, ln, ph, registrationTime)
         SwingUtilities.invokeLater(() -> {
             new ContactForm(fn, ln, ph, registrationTime).setVisible(true);
             dispose();
         });
     }
 
-    /** Логика «Add Post» — просто пример, не влияет на UserStore. */
+    /** Логика «Add Post» (демо) */
     private void doPost() {
-        AddPostDialog dlg = new AddPostDialog(this);
-        dlg.setVisible(true);
-        if (!dlg.isSubmitted()) return;
-
-        String content = dlg.getPostText();
-        String type    = dlg.getPostType();
-        if (content.isEmpty()) {
-            reaction.showMessage("Cannot post empty message.", false);
-            return;
-        }
-
-        System.out.println("New post [" + type + "]: " + content);
-        reaction.showMessage("Posted a new " + type + " post!", true);
+        JOptionPane.showMessageDialog(
+            this,
+            "This is just a placeholder for \"Add Post\".",
+            "Info",
+            JOptionPane.INFORMATION_MESSAGE
+        );
     }
 
-    // Вложенный класс AddPostDialog (остался без изменений)…
-    private static class AddPostDialog extends JDialog {
-        private final JTextArea         textArea;
-        private final JComboBox<String> typeCombo;
-        private boolean                 submitted = false;
+    // ===== Вложенный класс PostForm =====
 
-        public AddPostDialog(JFrame parent) {
-            super(parent, "Create New Post", true);
-            setSize(400, 300);
+    /**
+     * Модальное окно для отправки сообщения:
+     * - Message To:
+     * - Message From:
+     * - Tag Friend Link: (автоматически генерируется по «Message To»)
+     * - Message to write:
+     */
+   private static class PostForm extends JDialog {
+        private static final int MAX_CHARS = 50;
+
+        private final JTextField toField;
+        private final JTextField fromField;
+        private final JTextField tagLinkField;
+        private final JTextArea  messageArea;
+        private final JLabel     counterLabel;
+        private boolean          submitted = false;
+
+        public PostForm(JFrame parent) {
+            super(parent, "New Post Message", true);
+            setSize(480, 400);
             setLocationRelativeTo(parent);
-            setLayout(new BorderLayout(5,5));
+            setLayout(new BorderLayout(10, 10));
 
-            // 1) Выбор типа поста
-            JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
-            top.add(new JLabel("Post Type:"));
-            typeCombo = new JComboBox<>(new String[]{"Entertainment", "Educational"});
-            top.add(typeCombo);
-            add(top, BorderLayout.NORTH);
+            // Центр: поля ввода
+            JPanel center = new JPanel(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.insets = new Insets(5,5,5,5);
+            gbc.anchor = GridBagConstraints.WEST;
 
-            // 2) Текст поста
-            textArea = new JTextArea(8, 30);
-            textArea.setLineWrap(true);
-            textArea.setWrapStyleWord(true);
-            add(new JScrollPane(textArea), BorderLayout.CENTER);
+            // Message To
+            gbc.gridx = 0; gbc.gridy = 0;
+            center.add(new JLabel("Message To:"), gbc);
+            gbc.gridx = 1;
+            toField = new JTextField(20);
+            center.add(toField, gbc);
 
-            // 3) Кнопки Post / Cancel
-            JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-            JButton btnSubmit = new JButton("Post");
-            JButton btnCancel = new JButton("Cancel");
-            btns.add(btnSubmit);
-            btns.add(btnCancel);
-            add(btns, BorderLayout.SOUTH);
+            // Message From
+            gbc.gridx = 0; gbc.gridy = 1;
+            center.add(new JLabel("Message From:"), gbc);
+            gbc.gridx = 1;
+            fromField = new JTextField(20);
+            center.add(fromField, gbc);
 
-            btnSubmit.addActionListener(e -> {
+            // Tag Link
+            gbc.gridx = 0; gbc.gridy = 2;
+            center.add(new JLabel("Tag Friend Link:"), gbc);
+            gbc.gridx = 1;
+            tagLinkField = new JTextField(20);
+            tagLinkField.setEditable(false);
+            tagLinkField.setBackground(Color.WHITE);
+            center.add(tagLinkField, gbc);
+
+            // Message to write + counter
+            gbc.gridx = 0; gbc.gridy = 3;
+            gbc.anchor = GridBagConstraints.NORTHWEST;
+            center.add(new JLabel("Message to write:"), gbc);
+            gbc.gridx = 1;
+            messageArea = new JTextArea(6, 20);
+            messageArea.setLineWrap(true);
+            messageArea.setWrapStyleWord(true);
+            JScrollPane scroll = new JScrollPane(messageArea);
+            center.add(scroll, gbc);
+
+            // Счётчик символов
+            gbc.gridy = 4;
+            counterLabel = new JLabel("Осталось символов: " + MAX_CHARS);
+            center.add(counterLabel, gbc);
+
+            add(center, BorderLayout.CENTER);
+
+            // Поля-подсказки и автогенерация Link
+            toField.getDocument().addDocumentListener(new DocumentListener() {
+                void update() {
+                    String t = toField.getText().trim();
+                    tagLinkField.setText(t.isEmpty() ? "" : "https://myapp.com/user/" + t);
+                }
+                public void insertUpdate(DocumentEvent e) { update(); }
+                public void removeUpdate(DocumentEvent e) { update(); }
+                public void changedUpdate(DocumentEvent e) { update(); }
+            });
+
+            // Ограничение текста и обновление счётчика
+            messageArea.getDocument().addDocumentListener(new DocumentListener() {
+                void update() {
+                    String txt = messageArea.getText();
+                    if (txt.length() > MAX_CHARS) {
+                        // обрезаем лишнее
+                        SwingUtilities.invokeLater(() -> {
+                            messageArea.setText(txt.substring(0, MAX_CHARS));
+                        });
+                    }
+                    int remaining = MAX_CHARS - messageArea.getText().length();
+                    counterLabel.setText("Осталось символов: " + remaining);
+                }
+                public void insertUpdate(DocumentEvent e) { update(); }
+                public void removeUpdate(DocumentEvent e) { update(); }
+                public void changedUpdate(DocumentEvent e) { update(); }
+            });
+
+            // Нижняя панель: Send / Reset / Cancel
+            JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
+            JButton btnSend  = new JButton("Send");
+            JButton btnReset = new JButton("Reset");
+            JButton btnCancel= new JButton("Cancel");
+            buttons.add(btnSend);
+            buttons.add(btnReset);
+            buttons.add(btnCancel);
+            add(buttons, BorderLayout.SOUTH);
+
+            // Обработчики
+            btnSend.addActionListener(e -> {
+                if (toField.getText().trim().isEmpty() ||
+                    fromField.getText().trim().isEmpty() ||
+                    messageArea.getText().trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(
+                        this,
+                        "Все поля (кроме ссылки) должны быть заполнены.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
                 submitted = true;
                 dispose();
             });
+
+            btnReset.addActionListener(e -> {
+                toField.setText("");
+                fromField.setText("");
+                tagLinkField.setText("");
+                messageArea.setText("");
+                counterLabel.setText("Осталось символов: " + MAX_CHARS);
+            });
+
             btnCancel.addActionListener(e -> dispose());
         }
 
-        public boolean isSubmitted()       { return submitted; }
-        public String  getPostText()       { return textArea.getText().trim(); }
-        public String  getPostType()       { return (String) typeCombo.getSelectedItem(); }
+        public boolean isSubmitted()    { return submitted; }
+        public String getTo()           { return toField.getText().trim(); }
+        public String getFrom()         { return fromField.getText().trim(); }
+        public String getTagLink()      { return tagLinkField.getText().trim(); }
+        public String getMessageText()  { return messageArea.getText().trim(); }
     }
 }
+

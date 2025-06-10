@@ -25,6 +25,7 @@ public class ContactForm extends ValidForm {
     private AvailabilityPicker availability;
     private ReactionPanel      reaction;
     private Component[]        fields;
+    private final Map<String,List<String>> commentMap = new HashMap<>();
     private File               attached;
     private final SpellChecker spellchecker = new SpellChecker();
 
@@ -37,14 +38,11 @@ public class ContactForm extends ValidForm {
     private DefaultListModel<String> otherPostsModel;
     private JList<String>            otherPostsList;
 
-    /**
-     * Конструктор принимает «имя», «фамилию», «телефон» и время регистрации.
-     */
     public ContactForm(String fn, String ln, String ph, LocalDateTime registrationTime) {
         super("Contact Form");
-        this.expName          = fn;
+        this.expName      = fn;
         this.expSurname       = ln;
-        this.expPhone         =   ph;
+        this.expPhone         = ph;
         this.registrationTime = registrationTime;
 
         setSize(900, 600);
@@ -129,6 +127,13 @@ public class ContactForm extends ValidForm {
         JButton btnAddPost = new JButton("Add Post");
         btnAddPost.addActionListener(e -> openAddPostDialog());
 
+        // Новая кнопка «Темы» — рядом с «Add Post»
+        JButton btnTopics = new JButton("Topics");
+        btnTopics.addActionListener(e -> {
+            TopicsDialog dlg = new TopicsDialog(this);
+            dlg.setVisible(true);
+        });
+
         JPanel rightButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         rightButtons.setOpaque(false);
         rightButtons.add(btnEdit);
@@ -137,7 +142,7 @@ public class ContactForm extends ValidForm {
         rightButtons.add(btnInvite);
         rightButtons.add(btnNotify);
         rightButtons.add(btnAddPost);
-        
+        rightButtons.add(btnTopics); // добавляем кнопку «Темы» сразу после «Add Post»
 
         JPanel topBar = new JPanel(new BorderLayout(5, 0));
         topBar.setOpaque(false);
@@ -324,7 +329,6 @@ public class ContactForm extends ValidForm {
         }
     }
 
-    /** Показывает уведомление: когда был вход/регистрация и сколько времени прошло с тех пор. */
     private void showNotification() {
         if (registrationTime == null) {
             JOptionPane.showMessageDialog(this,
@@ -337,7 +341,7 @@ public class ContactForm extends ValidForm {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         String regTimeStr = registrationTime.format(formatter);
 
-        LocalDateTime now      = LocalDateTime.now();
+        LocalDateTime now    = LocalDateTime.now();
         Duration      duration = Duration.between(registrationTime, now);
         long days    = duration.toDays();
         long hours   = duration.toHours()   -  days * 24;
@@ -360,7 +364,6 @@ public class ContactForm extends ValidForm {
         );
     }
 
-    /** Открывает диалог «Add Post» для публикации нового поста. */
     private void openAddPostDialog() {
         AddPostDialog dlg = new AddPostDialog(this);
         dlg.setVisible(true);
@@ -377,18 +380,18 @@ public class ContactForm extends ValidForm {
         myPostsModel.addElement("[" + type + "] " + content);
         reaction.showMessage("Posted a new " + type + " post!", true);
     }
+  
 
-    /** Диалог для создания «поста» с выбором типа. */
     private static class AddPostDialog extends JDialog {
         private final JTextArea        textArea;
         private final JComboBox<String> typeCombo;
-        private boolean        submitted = false;
+        private boolean submitted = false;
 
         public AddPostDialog(JFrame parent) {
             super(parent, "Create New Post", true);
             setSize(400, 300);
             setLocationRelativeTo(parent);
-            setLayout(new BorderLayout(5,5));
+            setLayout(new BorderLayout(5, 5));
 
             // 1) Выбор типа поста
             JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
@@ -423,3 +426,4 @@ public class ContactForm extends ValidForm {
         public String  getPostType()     { return (String) typeCombo.getSelectedItem(); }
     }
 }
+
