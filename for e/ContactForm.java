@@ -1,4 +1,4 @@
-// ContactForm.java
+ // ContactForm.java
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 import java.awt.*;
@@ -6,10 +6,12 @@ import java.io.File;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 public class ContactForm extends ValidForm {
     private final String expName, expSurname, expPhone;
@@ -25,8 +27,8 @@ public class ContactForm extends ValidForm {
     private AvailabilityPicker availability;
     private ReactionPanel      reaction;
     private Component[]        fields;
-    private final Map<String,List<String>> commentMap = new HashMap<>();
-    private File               attached;
+   
+    private File              attached;
     private final SpellChecker spellchecker = new SpellChecker();
 
     // Search field at top
@@ -41,7 +43,7 @@ public class ContactForm extends ValidForm {
     public ContactForm(String fn, String ln, String ph, LocalDateTime registrationTime) {
         super("Contact Form");
         this.expName      = fn;
-        this.expSurname       = ln;
+        this.expSurname     = ln;
         this.expPhone         = ph;
         this.registrationTime = registrationTime;
 
@@ -70,14 +72,15 @@ public class ContactForm extends ValidForm {
         FriendStatusManager statusMgr = new FriendStatusManager();
         statusPanel = new FriendStatusPanel(statusMgr);
 
+
         // Friend list panel
         List<String> dummyFriends = Arrays.asList("Alice", "Bob", "Carol", "Dave");
         friendPanel = new FriendPanel(
             dummyFriends,
-            e -> {
+            e  -> {
                 String sel = friendPanel.getSelectedFriend();
                 statusPanel.updateStatus(sel);
-                new FriendPostDialog(this, sel).setVisible(true);
+               
             },
             e -> {
                 String id = e.getActionCommand();
@@ -87,7 +90,10 @@ public class ContactForm extends ValidForm {
             }
         );
 
+
         // Toolbar buttons
+        JButton btnExplore = new JButton("Explore");
+        btnExplore.addActionListener(e -> new ExploreDialog(this).setVisible(true));
         JButton btnEdit = new JButton("Edit Profile");
         btnEdit.addActionListener(e -> {
             ProfileEditorDialog dlg = new ProfileEditorDialog(
@@ -133,12 +139,32 @@ public class ContactForm extends ValidForm {
             TopicsDialog dlg = new TopicsDialog(this);
             dlg.setVisible(true);
         });
+        JButton btnPeople = new JButton("People you may know");
+        btnPeople.addActionListener(e -> {
+            List<String> allFriends = friendPanel.getAllFriends();
+            PeopleYouKnowDialog dlg = new PeopleYouKnowDialog(this, allFriends);
+            dlg.setVisible(true);
+            if(dlg.isConfirmed()) {
+                List<String> known = dlg.getSelectedFriends();
+                JOptionPane.showMessageDialog(this, "You marked as known:\n" + String.join(", ", known), "Selected Friends", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+        Map<String, List<String>> repostMap = new HashMap<>();
+        repostMap.put("Alice", Arrays.asList("Dave", "Carol"));
+        repostMap.put("Bob", Arrays.asList("Dave"));
+        repostMap.put("Carol", Arrays.asList("Alice"));
+        repostMap.put("Dave", Arrays.asList("Carol", "Bob"));
+        JButton btnCommon = new JButton("Common Repostters");
+        btnCommon.addActionListener(e -> new CommonRepostDialog(this, repostMap).setVisible(true));
 
         JPanel rightButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         rightButtons.setOpaque(false);
         rightButtons.add(btnEdit);
         rightButtons.add(btnFaq);
         rightButtons.add(btnChat);
+        rightButtons.add(btnExplore);
+        rightButtons.add(btnPeople);
+        rightButtons.add(btnCommon);
         rightButtons.add(btnInvite);
         rightButtons.add(btnNotify);
         rightButtons.add(btnAddPost);
@@ -157,7 +183,7 @@ public class ContactForm extends ValidForm {
         add(headWithAvatar, BorderLayout.AFTER_LAST_LINE);
 
         // —— 2) INPUT FIELDS —— 
-        name    = addTextField(0, "Name",    expName,           20);
+        name  = addTextField(0, "Name",    expName,           20);
         surname = addTextField(1, "Surname", expSurname,        20);
         phone   = addMaskedField(2, "Phone", "+7 (###) ###-##-##", expPhone);
         email   = addTextField(3, "Email",   "example@mail.com", 20);
@@ -169,7 +195,7 @@ public class ContactForm extends ValidForm {
         add(panel, BorderLayout.CENTER);
 
         // Spellcheck button
-        gbc.gridx  = 0;
+        gbc.gridx = 0;
         gbc.gridy  = 5;
         gbc.anchor = GridBagConstraints.WEST;
         JButton btnCheck = new JButton("Check Spelling");
@@ -179,7 +205,7 @@ public class ContactForm extends ValidForm {
         // Attach file + preview
         gbc.gridx = 0;
         gbc.gridy = 6;
-        panel.add(new JLabel("Attach File:"), gbc);
+        panel.add(new  JLabel("Attach File:"), gbc);
 
         gbc.gridx = 1;
         JButton attachBtn = new JButton("Attach...");
@@ -203,11 +229,11 @@ public class ContactForm extends ValidForm {
         });
 
         // Availability picker
-        gbc.gridx     = 0;
-        gbc.gridy      = 7;
-        gbc.gridwidth  = 3;
+        gbc.gridx  = 0;
+        gbc.gridy  = 7;
+        gbc.gridwidth = 3;
         gbc.anchor     = GridBagConstraints.CENTER;
-        availability   = new AvailabilityPicker();
+        availability = new AvailabilityPicker();
         panel.add(availability, gbc);
 
         gbc.gridwidth = 1;
@@ -254,7 +280,7 @@ public class ContactForm extends ValidForm {
         add(new RecommendedContentPanel(), BorderLayout.EAST);
 
         // —— 8) Posts panels on the right —— 
-        JPanel rightPanel =  new JPanel(new GridLayout(2, 1, 5, 5));
+        JPanel rightPanel =  new JPanel(new GridLayout(2, 1, 5 , 5));
         rightPanel.setPreferredSize(new Dimension(200, 0));
 
         // 8.a) Other People's Posts
@@ -341,9 +367,9 @@ public class ContactForm extends ValidForm {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         String regTimeStr = registrationTime.format(formatter);
 
-        LocalDateTime now    = LocalDateTime.now();
-        Duration      duration = Duration.between(registrationTime, now);
-        long days    = duration.toDays();
+        LocalDateTime now  = LocalDateTime.now();
+        Duration     duration = Duration.between(registrationTime, now);
+        long days  = duration.toDays();
         long hours   = duration.toHours()   -  days * 24;
         long minutes = duration.toMinutes() - duration.toHours() * 60;
 
@@ -370,7 +396,7 @@ public class ContactForm extends ValidForm {
         if (!dlg.isSubmitted()) return;
 
         String content = dlg.getPostText();
-        String type   = dlg.getPostType();
+        String type  = dlg.getPostType();
         if (content.isEmpty()) {
             reaction.showMessage("Cannot post empty message.", false);
             return;
@@ -391,7 +417,7 @@ public class ContactForm extends ValidForm {
             super(parent, "Create New Post", true);
             setSize(400, 300);
             setLocationRelativeTo(parent);
-            setLayout(new BorderLayout(5, 5));
+            setLayout(new BorderLayout(5,5));
 
             // 1) Выбор типа поста
             JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 5));
@@ -424,6 +450,37 @@ public class ContactForm extends ValidForm {
         public boolean isSubmitted()     { return submitted; }
         public String  getPostText()     { return textArea.getText().trim(); }
         public String  getPostType()     { return (String) typeCombo.getSelectedItem(); }
-    }
-}
+    } 
+     private static class ExploreDialog extends JDialog {
+        public ExploreDialog(JFrame parent) {
+            super(parent, "About This App", true);
+            setSize(400,300);
+            setLocationRelativeTo(parent);
+            setLayout(new BorderLayout(10, 10));
 
+            String info = "<html><h1>ContactForm Application</h1>"
+                        + "<p>Версия: 1.0<br>"
+                        + "Автор: Ваша команда<br><br>"
+                        + "Это приложение позволяет:</p>"
+                        + "<ul>"
+                        + "<li>Заполнять контактную форму</li>"
+                        + "<li>Просматривать и комментировать посты друзей</li>"
+                        + "<li>Добавлять собственные посты</li>"
+                        + "</ul>"
+                        + "</html>";
+
+            JLabel lbl = new JLabel(info);
+            lbl.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+            add(lbl, BorderLayout.CENTER);
+
+            JButton btnClose = new JButton("Close");
+            btnClose.addActionListener(e -> dispose());
+            JPanel pnl = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            pnl.add(btnClose);
+            add(pnl, BorderLayout.SOUTH);
+        }
+    }
+
+}
+     
+    
