@@ -11,7 +11,7 @@ public class FriendFeedDialog extends JDialog {
         super(parent, "Friends Feed", true);
         setSize(400, 300);
         setLocationRelativeTo(parent);
-        setLayout(new BorderLayout(5, 5));
+        setLayout(new BorderLayout(5,5));
 
         // Текстовая область для отображения ленты
         JTextArea feedArea = new JTextArea();
